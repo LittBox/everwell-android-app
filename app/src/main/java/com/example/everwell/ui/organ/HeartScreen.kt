@@ -14,16 +14,33 @@ import androidx.compose.ui.unit.dp
 import io.github.sceneview.SceneView
 import io.github.sceneview.rememberModelInstance
 import io.github.sceneview.math.Position
-import io.github.sceneview.node.ModelNode
+
+import androidx.compose.material3.Button
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import io.github.sceneview.rememberCameraManipulator
 
 @Composable
 fun HeartScreen() {
+    var resetCount by remember {
+        mutableIntStateOf(0)
+    }
+
+    val cameraManipulator = rememberCameraManipulator(
+        orbitHomePosition = Position(0f, 0.4f, 2.75f),
+        targetPosition = Position(0f, 0f, 0f),
+        key = resetCount
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
 
         SceneView(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            cameraManipulator = cameraManipulator
         ) {
+
 
             val heartInstance = rememberModelInstance(
                 modelLoader,
@@ -38,6 +55,17 @@ fun HeartScreen() {
                     autoAnimate = false
                 )
             }
+        }
+
+        Button(
+            onClick = {
+                resetCount++
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 48.dp)
+        ) {
+            Text("恢复默认视角")
         }
 
         Text(
