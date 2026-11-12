@@ -78,6 +78,9 @@ fun HeartScreen() {
     var resetCount by remember { mutableIntStateOf(0) }
     var loadAttempt by remember { mutableIntStateOf(0) }
     var showCredits by remember { mutableStateOf(false) }
+    var tourActive by remember { mutableStateOf(true) }
+    var tourIndex by remember { mutableIntStateOf(0) }
+    val tourStep = HeartGuidedTour.steps.getOrNull(tourIndex)
     var loadingSlow by remember(loadAttempt) { mutableStateOf(false) }
     val selected = HeartKnowledge.find(selectedId)
 
@@ -92,6 +95,31 @@ fun HeartScreen() {
         selectedId = null
         isolated = false
     }
+    val finishTour: () -> Unit = {
+        tourActive = false
+        clearSelection()
+        resetCount++
+        // Isolation changes native Filament renderable visibility. The tour layout also
+        // swaps the SceneView composition branch, so do not trust a visibility snapshot
+        // captured from a previously isolated ModelInstance. Recreate the model instance
+        // from the GLB to guarantee that every renderable starts visible again.
+        loadAttempt++
+    }
+    val advanceTour: () -> Unit = {
+        if (tourIndex >= HeartGuidedTour.steps.lastIndex) {
+            finishTour()
+        } else {
+            tourIndex++
+        }
+    }
+    LaunchedEffect(tourActive, tourIndex) {
+        if (tourActive) {
+            val step = HeartGuidedTour.steps.getOrNull(tourIndex)
+            val structure = HeartKnowledge.find(step?.structureId)
+            selectedId = structure?.id
+            isolated = structure?.internalSpace == true
+        }
+    }
     val chooseStructure: (HeartStructure) -> Unit = { structure ->
         selectedId = structure.id
         // Cavity meshes are inside the wall: make a list-selected cavity visible immediately.
@@ -104,8 +132,12 @@ fun HeartScreen() {
     val modelLoader = rememberModelLoader(engine)
     val renderInvalidator = rememberRenderInvalidator()
     val onNodePicked = rememberUpdatedState<(String?) -> Unit> { nodeName ->
-        selectedId = HeartKnowledge.findByNodeName(nodeName)?.id
-        if (selectedId == null) isolated = false
+        if (tourActive) {
+            advanceTour()
+        } else {
+            selectedId = HeartKnowledge.findByNodeName(nodeName)?.id
+            if (selectedId == null) isolated = false
+        }
     }
     val controller = remember(view, materialLoader, renderInvalidator) {
         HeartSceneController(view, materialLoader, renderInvalidator) { nodeName ->
@@ -120,8 +152,21 @@ fun HeartScreen() {
         controller.select(names)
         controller.isolate(names.takeIf { isolated && it.isNotEmpty() })
     }
-    BackHandler(enabled = selected != null || showCredits) {
-        if (showCredits) showCredits = false else clearSelection()
+    // The tour temporarily isolates the ventricular cavity meshes. On exit, restore the
+    // native Filament renderables explicitly instead of relying only on Compose state changes.
+    LaunchedEffect(controller, tourActive) {
+        if (!tourActive) {
+            controller.cancelPendingPick()
+            controller.clearSelection()
+            controller.isolate(null)
+        }
+    }
+    BackHandler(enabled = tourActive || selected != null || showCredits) {
+        when {
+            showCredits -> showCredits = false
+            tourActive -> finishTour()
+            else -> clearSelection()
+        }
     }
 
     // The loader owns native resources; retry replaces one instance instead of adding a scene.
@@ -154,8 +199,16 @@ fun HeartScreen() {
                     Text("EVERWELL  /  身体探索", color = HeartPalette.Primary, fontSize = 10.sp, letterSpacing = 1.sp)
                     Text("心脏结构", color = HeartPalette.Ink, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                 }
-                TextButton(onClick = { showCredits = true }) {
-                    Text("资料与模型", color = HeartPalette.Primary, fontSize = 12.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = {
+                        tourIndex = 0
+                        tourActive = true
+                    }) {
+                        Text("小伊导览", color = HeartPalette.Primary, fontSize = 12.sp)
+                    }
+                    TextButton(onClick = { showCredits = true }) {
+                        Text("资料与模型", color = HeartPalette.Primary, fontSize = 12.sp)
+                    }
                 }
             }
 
@@ -191,7 +244,9 @@ fun HeartScreen() {
                         cameraManipulator = cameraManipulator,
                         onGestureListener = rememberOnGestureListener(
                             onDown = { _, _ -> controller.cancelPendingPick() },
-                            onSingleTapConfirmed = { event, _ -> controller.pick(event) }
+                            onSingleTapConfirmed = { event, _ ->
+                                if (tourActive) advanceTour() else controller.pick(event)
+                            }
                         )
                     ) {
                         heartInstance?.let { instance ->
@@ -213,38 +268,52 @@ fun HeartScreen() {
                         Text(
                             if (isolated && selected != null) "单独查看 · ${selected.name}"
                             else if (selected != null) "已选中 · ${selected.name}"
+                            else if (tourActive) "点击继续 · 拖动旋转 · 双指缩放"
                             else "轻点选择 · 拖动旋转 · 双指缩放",
                             color = HeartPalette.Primary,
                             fontSize = 11.sp,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                         )
                     }
-                    Row(
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        if (selected != null) {
+                    if (!tourActive) {
+                        Row(
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (selected != null) {
+                                FilledTonalButton(
+                                    onClick = { isolated = !isolated },
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                    colors = ButtonDefaults.filledTonalButtonColors(
+                                        containerColor = if (isolated) HeartPalette.Primary else Color.White,
+                                        contentColor = if (isolated) Color.White else HeartPalette.Primary
+                                    )
+                                ) { Text(if (isolated) "显示全部" else "单独查看", fontSize = 12.sp) }
+                            }
                             FilledTonalButton(
-                                onClick = { isolated = !isolated },
+                                onClick = {
+                                    controller.cancelPendingPick()
+                                    clearSelection()
+                                    resetCount++
+                                },
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                                 colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = if (isolated) HeartPalette.Primary else Color.White,
-                                    contentColor = if (isolated) Color.White else HeartPalette.Primary
+                                    containerColor = Color.White,
+                                    contentColor = HeartPalette.Primary
                                 )
-                            ) { Text(if (isolated) "显示全部" else "单独查看", fontSize = 12.sp) }
+                            ) { Text("重置探索", fontSize = 12.sp) }
                         }
-                        FilledTonalButton(
-                            onClick = {
-                                controller.cancelPendingPick()
-                                clearSelection()
-                                resetCount++
-                            },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = Color.White,
-                                contentColor = HeartPalette.Primary
+                    } else {
+                        tourStep?.let { step ->
+                            HeartGuidedTourCard(
+                                step = step,
+                                index = tourIndex,
+                                total = HeartGuidedTour.steps.size,
+                                onNext = advanceTour,
+                                onSkip = finishTour,
+                                modifier = Modifier.align(Alignment.BottomCenter).padding(10.dp)
                             )
-                        ) { Text("重置探索", fontSize = 12.sp) }
+                        }
                     }
                     if (!modelReady) {
                         Column(
@@ -274,7 +343,9 @@ fun HeartScreen() {
                 }
             }
 
-            if (wideLayout) {
+            if (tourActive) {
+                viewer(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp))
+            } else if (wideLayout) {
                 Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
                     viewer(Modifier.weight(1.1f).fillMaxHeight())
                     Spacer(Modifier.width(14.dp))
