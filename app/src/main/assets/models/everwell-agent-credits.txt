@@ -1,0 +1,62 @@
+Everwell home companion model
+============================
+
+Display name in Everwell: 小伊 (Xiao Yi)
+Original asset: RobotExpressive / Animated Robot Pack
+Original model author: Tomás Laulhé (Quaternius)
+Facial morph targets, glTF conversion, material cleanup: Don McCurdy
+Asset license: CC0 1.0 Universal
+
+Original author's page:
+https://quaternius.com/packs/animatedrobot.html
+
+Fixed distribution revision:
+Repository: https://github.com/mrdoob/three.js
+Commit: 54599c2ba7ae748ad5c330295806348cab074648
+Asset path: examples/models/gltf/RobotExpressive/RobotExpressive.glb
+Asset URL:
+https://raw.githubusercontent.com/mrdoob/three.js/54599c2ba7ae748ad5c330295806348cab074648/examples/models/gltf/RobotExpressive/RobotExpressive.glb
+Model-specific provenance:
+https://raw.githubusercontent.com/mrdoob/three.js/54599c2ba7ae748ad5c330295806348cab074648/examples/models/gltf/RobotExpressive/README.md
+
+License:
+https://creativecommons.org/publicdomain/zero/1.0/
+The complete CC0 text is included as assets/licenses/everwell-agent-CC0-1.0.txt.
+The model license was checked separately from the three.js code license.
+
+Verification of the distributed binary
+-------------------------------------
+Bytes: 463988
+SHA-256: 047f5e5fb3bb6d378bd1df16ca6137f2a596c99b3a1b5690b4020c05aaf6f319
+74 nodes, 14 meshes, 2 skins, 3 materials, 0 textures.
+3237 triangles. No required glTF extensions.
+14 real animation clips:
+Dance, Death, Idle, Jump, No, Punch, Running, Sitting, Standing,
+ThumbsUp, Walking, WalkJump, Wave, Yes.
+
+Everwell uses Idle (3.333s), Wave (1.833s), Yes (1.667s),
+and ThumbsUp (1.583s). One-shot actions return to Idle.
+There is no Thinking clip; the app does not invent one.
+
+Changes made for Everwell
+------------------------
+- Binary renamed to everwell-agent.glb; the original bytes are unchanged.
+- Added native app interaction and playback controls.
+- Rendered a transparent PNG from the original model in Blender for
+  Compose Preview, loading and inactive/error fallback. This rendered
+  adaptation is also offered under CC0 1.0 Universal.
+- Assigned a product-facing nickname. No exclusive ownership of the
+  shared model, creator endorsement or trademark rights is claimed.
+
+Upstream model README (verbatim)
+-------------------------------
+# RobotExpressive
+
+Model by [Tomás Laulhé](https://www.patreon.com/quaternius). Before using this
+model on a project, consider supporting the creator's Patreon. CC0 1.0.
+
+Modifications by [Don McCurdy](https://donmccurdy.com/):
+
+- Added three facial expression morph targets
+- Converted with FBX2GLTF
+- Removed duplicate materials and reduced material metalness

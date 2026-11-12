@@ -2,7 +2,8 @@
 package com.example.everwell.ui.navigation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -28,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -36,6 +38,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 
 import com.example.everwell.ui.organ.HeartScreen
+import com.example.everwell.ui.home.TodayScreen
 
 private data class NavItem(
     val route: String,
@@ -79,7 +82,8 @@ fun EverwellNavHost() {
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 12.dp),
+                            .padding(horizontal = 12.dp)
+                            .selectableGroup(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -98,7 +102,7 @@ fun EverwellNavHost() {
                                             Color.Transparent,
                                         shape = CircleShape
                                     )
-                                    .clickable {
+                                    .selectable(selected = selected, role = Role.Tab, onClick = {
                                         navController.navigate(item.route) {
                                             popUpTo(
                                                 navController.graph
@@ -109,7 +113,7 @@ fun EverwellNavHost() {
                                             launchSingleTop = true
                                             restoreState = true
                                         }
-                                    },
+                                    }),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -136,7 +140,17 @@ fun EverwellNavHost() {
         ) {
 
             composable("today") {
-                PlaceholderScreen("今天")
+                TodayScreen(
+                    onExploreBody = {
+                        navController.navigate("explore") {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
             }
 
             composable("explore") {
@@ -147,6 +161,14 @@ fun EverwellNavHost() {
                 PlaceholderScreen("我的")
             }
         }
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun EverwellHomePreview() {
+    androidx.compose.material3.MaterialTheme {
+        EverwellNavHost()
     }
 }
 
