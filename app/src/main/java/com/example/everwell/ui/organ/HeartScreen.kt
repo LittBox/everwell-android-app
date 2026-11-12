@@ -1,79 +1,365 @@
-
 package com.example.everwell.ui.organ
 
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
+import androidx.compose.ui.unit.sp
 import io.github.sceneview.SceneView
-import io.github.sceneview.rememberModelInstance
+import io.github.sceneview.SurfaceType
 import io.github.sceneview.math.Position
-
-import androidx.compose.material3.Button
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
 import io.github.sceneview.rememberCameraManipulator
+import io.github.sceneview.rememberEngine
+import io.github.sceneview.rememberMaterialLoader
+import io.github.sceneview.rememberModelInstance
+import io.github.sceneview.rememberModelLoader
+import io.github.sceneview.rememberOnGestureListener
+import io.github.sceneview.rememberRenderInvalidator
+import io.github.sceneview.rememberView
+import kotlinx.coroutines.delay
 
 @Composable
 fun HeartScreen() {
-    var resetCount by remember {
-        mutableIntStateOf(0)
+    var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    var isolated by rememberSaveable { mutableStateOf(false) }
+    var resetCount by remember { mutableIntStateOf(0) }
+    var loadAttempt by remember { mutableIntStateOf(0) }
+    var showCredits by remember { mutableStateOf(false) }
+    var loadingSlow by remember(loadAttempt) { mutableStateOf(false) }
+    val selected = HeartKnowledge.find(selectedId)
+
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val openSource: (String) -> Unit = { url ->
+        runCatching { uriHandler.openUri(url) }.onFailure {
+            Toast.makeText(context, "暂时无法打开链接，请检查浏览器", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val clearSelection: () -> Unit = {
+        selectedId = null
+        isolated = false
+    }
+    val chooseStructure: (HeartStructure) -> Unit = { structure ->
+        selectedId = structure.id
+        // Cavity meshes are inside the wall: make a list-selected cavity visible immediately.
+        isolated = structure.internalSpace
     }
 
+    val engine = rememberEngine()
+    val view = rememberView(engine)
+    val materialLoader = rememberMaterialLoader(engine)
+    val modelLoader = rememberModelLoader(engine)
+    val renderInvalidator = rememberRenderInvalidator()
+    val onNodePicked = rememberUpdatedState<(String?) -> Unit> { nodeName ->
+        selectedId = HeartKnowledge.findByNodeName(nodeName)?.id
+        if (selectedId == null) isolated = false
+    }
+    val controller = remember(view, materialLoader, renderInvalidator) {
+        HeartSceneController(view, materialLoader, renderInvalidator) { nodeName ->
+            onNodePicked.value(nodeName)
+        }
+    }
+    DisposableEffect(controller) {
+        onDispose { controller.dispose() }
+    }
+    LaunchedEffect(controller, selectedId, isolated) {
+        val names = selected?.nodeNames.orEmpty()
+        controller.select(names)
+        controller.isolate(names.takeIf { isolated && it.isNotEmpty() })
+    }
+    BackHandler(enabled = selected != null || showCredits) {
+        if (showCredits) showCredits = false else clearSelection()
+    }
+
+    // The loader owns native resources; retry replaces one instance instead of adding a scene.
+    val heartInstance = key(loadAttempt) {
+        rememberModelInstance(modelLoader, HeartKnowledge.MODEL_ASSET)
+    }
+    LaunchedEffect(heartInstance, loadAttempt) {
+        loadingSlow = false
+        if (heartInstance == null) {
+            delay(15_000)
+            loadingSlow = true
+        }
+    }
+    val modelReady = heartInstance != null
     val cameraManipulator = rememberCameraManipulator(
-        orbitHomePosition = Position(0f, 0.4f, 2.75f),
+        orbitHomePosition = Position(0f, 0.10f, 2.35f),
         targetPosition = Position(0f, 0f, 0f),
         key = resetCount
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(HeartPalette.Background)) {
+        val wideLayout = maxWidth >= 680.dp
 
-        SceneView(
-            modifier = Modifier.fillMaxSize(),
-            cameraManipulator = cameraManipulator
-        ) {
+        Column(Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("EVERWELL  /  身体探索", color = HeartPalette.Primary, fontSize = 10.sp, letterSpacing = 1.sp)
+                    Text("心脏结构", color = HeartPalette.Ink, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                }
+                TextButton(onClick = { showCredits = true }) {
+                    Text("资料与模型", color = HeartPalette.Primary, fontSize = 12.sp)
+                }
+            }
 
+            val viewer: @Composable (Modifier) -> Unit = { modifier ->
+                Box(
+                    modifier = modifier.clip(RoundedCornerShape(28.dp)).background(
+                        Brush.verticalGradient(listOf(Color(0xFFF0EBF7), Color(0xFFF8F6FC)))
+                    )
+                ) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        val origin = Offset(size.width * 0.5f, size.height * 0.48f)
+                        listOf(0.31f, 0.45f, 0.61f).forEach { factor ->
+                            drawCircle(
+                                color = Color(0xFF6750A4).copy(alpha = 0.045f),
+                                radius = size.minDimension * factor,
+                                center = origin,
+                                style = Stroke(width = 1.dp.toPx())
+                            )
+                        }
+                    }
+                    SceneView(
+                        modifier = Modifier.fillMaxSize().semantics {
+                            contentDescription = "可旋转的三维心脏。点击部位选择，也可使用下方结构目录。"
+                        },
+                        surfaceType = SurfaceType.TextureSurface,
+                        engine = engine,
+                        view = view,
+                        modelLoader = modelLoader,
+                        materialLoader = materialLoader,
+                        renderInvalidator = renderInvalidator,
+                        isOpaque = false,
+                        autoCenterContent = false,
+                        cameraManipulator = cameraManipulator,
+                        onGestureListener = rememberOnGestureListener(
+                            onDown = { _, _ -> controller.cancelPendingPick() },
+                            onSingleTapConfirmed = { event, _ -> controller.pick(event) }
+                        )
+                    ) {
+                        heartInstance?.let { instance ->
+                            ModelNode(
+                                modelInstance = instance,
+                                scaleToUnits = 1.35f,
+                                centerOrigin = Position(0f, 0f, 0f),
+                                autoAnimate = false,
+                                apply = { controller.bind(this) }
+                            )
+                        }
+                    }
 
-            val heartInstance = rememberModelInstance(
-                modelLoader,
-                "models/heart-dequantized.glb"
-            )
+                    Surface(
+                        modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
+                        color = Color.White.copy(alpha = 0.90f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            if (isolated && selected != null) "单独查看 · ${selected.name}"
+                            else if (selected != null) "已选中 · ${selected.name}"
+                            else "轻点选择 · 拖动旋转 · 双指缩放",
+                            color = HeartPalette.Primary,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (selected != null) {
+                            FilledTonalButton(
+                                onClick = { isolated = !isolated },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = if (isolated) HeartPalette.Primary else Color.White,
+                                    contentColor = if (isolated) Color.White else HeartPalette.Primary
+                                )
+                            ) { Text(if (isolated) "显示全部" else "单独查看", fontSize = 12.sp) }
+                        }
+                        FilledTonalButton(
+                            onClick = {
+                                controller.cancelPendingPick()
+                                clearSelection()
+                                resetCount++
+                            },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = Color.White,
+                                contentColor = HeartPalette.Primary
+                            )
+                        ) { Text("重置探索", fontSize = 12.sp) }
+                    }
+                    if (!modelReady) {
+                        Column(
+                            modifier = Modifier.align(Alignment.Center)
+                                .background(Color.White.copy(alpha = 0.94f), RoundedCornerShape(20.dp))
+                                .padding(22.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            if (!loadingSlow) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(26.dp),
+                                    color = HeartPalette.Primary,
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                            Text(if (loadingSlow) "模型暂未载入" else "正在加载心脏", color = HeartPalette.Ink, fontSize = 13.sp)
+                            if (loadingSlow) {
+                                TextButton(onClick = {
+                                    controller.bind(null)
+                                    clearSelection()
+                                    loadAttempt++
+                                }) { Text("重新加载", color = HeartPalette.Primary) }
+                            }
+                        }
+                    }
+                }
+            }
 
-            heartInstance?.let { instance ->
-                ModelNode(
-                    modelInstance = instance,
-                    scaleToUnits = 1.0f,
-                    centerOrigin = Position(0f, 0f, 0f),
-                    autoAnimate = false
+            if (wideLayout) {
+                Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    viewer(Modifier.weight(1.1f).fillMaxHeight())
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f).fillMaxHeight()) {
+                        StructurePicker(selectedId, chooseStructure)
+                        HeartKnowledgePanel(
+                            structure = selected,
+                            onStart = { chooseStructure(HeartKnowledge.structures.first()) },
+                            onClose = clearSelection,
+                            onOpenSource = openSource,
+                            modifier = Modifier.weight(1f).fillMaxWidth()
+                        )
+                    }
+                }
+            } else {
+                viewer(Modifier.weight(0.55f).fillMaxWidth().padding(horizontal = 16.dp))
+                StructurePicker(selectedId, chooseStructure)
+                HeartKnowledgePanel(
+                    structure = selected,
+                    onStart = { chooseStructure(HeartKnowledge.structures.first()) },
+                    onClose = clearSelection,
+                    onOpenSource = openSource,
+                    modifier = Modifier.weight(0.45f).fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 4.dp)
                 )
             }
         }
+    }
 
-        Button(
-            onClick = {
-                resetCount++
+    if (showCredits) {
+        AlertDialog(
+            onDismissRequest = { showCredits = false },
+            title = { Text("资料与模型", color = HeartPalette.Ink) },
+            text = {
+                Column(
+                    Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("科普知识", color = HeartPalette.Primary, fontWeight = FontWeight.SemiBold)
+                    Text("卡片文字参考 NIH / NHLBI 与 OpenStax。每张卡片都能打开对应原文。资料核对：2026-11-12。")
+                    Text("三维模型", color = HeartPalette.Primary, fontWeight = FontWeight.SemiBold)
+                    Text(HeartKnowledge.MODEL_ATTRIBUTION, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "由 OrganUI Heart 整理为心脏结构模型；Everwell 保留原几何，用于结构选择与知识展示。颜色用于区分结构。",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        "心室壁为合并结构；左右心室腔表示内部空间。模型为教学用参考，血流关系图不代表实时生理测量。",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    TextButton(onClick = { openSource(HeartKnowledge.MODEL_SOURCE_URL) }) { Text("查看模型来源 ↗") }
+                    TextButton(onClick = { openSource(HeartKnowledge.MODEL_LICENSE_URL) }) { Text("CC BY 4.0 许可 ↗") }
+                }
             },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 48.dp)
-        ) {
-            Text("恢复默认视角")
-        }
-
-        Text(
-            text = "Everwell · 3D Heart",
-            color = Color.White,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 48.dp)
+            confirmButton = {
+                TextButton(onClick = { showCredits = false }) { Text("知道了", color = HeartPalette.Primary) }
+            },
+            containerColor = Color.White
         )
+    }
+}
+
+@Composable
+private fun StructurePicker(
+    selectedId: String?,
+    onSelect: (HeartStructure) -> Unit
+) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        items(HeartKnowledge.structures, key = HeartStructure::id) { structure ->
+            FilterChip(
+                selected = selectedId == structure.id,
+                onClick = { onSelect(structure) },
+                label = { Text(structure.name, fontSize = 12.sp) },
+                shape = RoundedCornerShape(12.dp),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = HeartPalette.Primary,
+                    selectedLabelColor = Color.White,
+                    containerColor = Color.White,
+                    labelColor = HeartPalette.Secondary
+                )
+            )
+        }
     }
 }

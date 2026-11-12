@@ -1,0 +1,83 @@
+Everwell — 心脏结构教学模型 / Heart structure model credits
+
+Required attribution / 署名
+BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International.
+
+Asset / 本应用中的文件
+heart-structures.glb
+Size: 2,524,400 bytes
+SHA-256: b80a727d022a4ab07ccfcf15caccc228eaccb6d69ec0e72923324946ac35a946
+
+Original dataset / 原始数据
+BodyParts3D 4.0, released 2013-05-16.
+Official archive: https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html
+Official license: https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html
+Model/data license: Creative Commons Attribution 4.0 International (CC BY 4.0).
+License terms: https://creativecommons.org/licenses/by/4.0/
+License page last updated: 2025-02-27; independently checked for this integration on 2026-11-12.
+Research reference: Mitsuhashi et al., “BodyParts3D: 3D structure database for anatomical concepts”, Nucleic Acids Research 37 (2009), D782–D785.
+DOI: https://doi.org/10.1093/nar/gkn613
+
+Derived asset / 整理后的模型
+OrganUI Heart: https://github.com/organui/heart-3d
+Source commit: c72ce6654ff8e282942f97750d3104f55ef4fc3d
+Source file: https://github.com/organui/heart-3d/blob/c72ce6654ff8e282942f97750d3104f55ef4fc3d/public/models/heart.glb
+Original attribution: https://github.com/organui/heart-3d/blob/c72ce6654ff8e282942f97750d3104f55ef4fc3d/public/models/ATTRIBUTION.md
+Model provenance: https://github.com/organui/heart-3d/blob/c72ce6654ff8e282942f97750d3104f55ef4fc3d/docs/MODEL_PROVENANCE.md
+Full source hashes and mappings: https://github.com/organui/heart-3d/blob/c72ce6654ff8e282942f97750d3104f55ef4fc3d/public/models/manifest.json
+
+Changes by OrganUI
+Selected meshes, grouped meshes by source concept, triangulated faces, recentered and uniformly scaled coordinates, changed axes from Z-up to Y-up, recomputed smooth normals, assigned illustrative colors, and converted OBJ to GLB. No further decimation or invented anatomy. The two ventricular walls remain one mesh; separate cavity surfaces represent interior spaces, not muscle tissue.
+
+Changes by Everwell
+The model was copied byte-for-byte from the source commit above and renamed from heart.glb to heart-structures.glb. No geometry, node, material, or metadata changes were made to the asset. Application rendering may apply camera, visibility, scale, and selection emphasis at runtime. The original heart-dequantized.glb in the project is retained separately.
+
+Source input provenance recorded by OrganUI
+Retrieved from the official BodyParts3D archive on 2026-09-22.
+Geometry variant: IS-A OBJ archive, polygon reduction rate 99%. “99%” is the source archive label, not an anatomical accuracy claim.
+
+isa_BP3D_4.0_obj_99.zip
+https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/isa_BP3D_4.0_obj_99.zip
+SHA-256: 40665852c49f218326590e204db91064a1ecfc3c6f8cbd7bbbcaac62c7cd409e
+
+partof_element_parts.txt
+https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/partof_element_parts.txt
+SHA-256: 3f5f6df1028eb122b30de77c711597b6bb8e5541658e5985859fd228adbf88ea
+
+isa_element_parts.txt
+https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/isa_element_parts.txt
+SHA-256: a3de74423f943b0d724ae8f59b3a817f87c423a544f8db98113b1980817cbeaf
+
+License provenance note
+Legacy OBJ headers cite CC BY-SA 2.1 Japan and link to the same official archive license URL. OrganUI's attribution relies on the archive's current CC BY 4.0 grant for these directly downloaded assets and preserves the discrepancy and a dated source-license snapshot. The official archive's current CC BY 4.0 grant was also checked for this integration. The MIT license for OrganUI's application code does not relicense this model or images derived from it. Preserve this attribution, the model license link, and modification notices when redistributing the model or its images. DBCLS does not endorse this demonstration.
+
+GLB names and meanings / 节点名称与含义
+Each GLB node name equals its mesh name, material name, and extras.structureId. FMA IDs are stored in extras.fma.
+
+right-atrium | FMA9457 | 右心房壁 / wall of right atrium
+left-atrium | FMA9531 | 左心房壁 / wall of left atrium
+ventricular-wall | FMA13884 | 合并的心室壁 / combined ventricular wall
+right-ventricle | FMA9291 | 右心室腔 / cavity of right ventricle
+left-ventricle | FMA9466 | 左心室腔 / cavity of left ventricle
+ascending-aorta | FMA3736 | 升主动脉 / ascending aorta
+aortic-arch | FMA3768 | 主动脉弓 / arch of aorta
+pulmonary-trunk | FMA8612 | 肺动脉干 / pulmonary trunk
+superior-vena-cava | FMA4720 | 上腔静脉 / superior vena cava
+left-coronary | FMA50040 | 左冠状动脉树 / left coronary artery tree
+right-coronary | FMA50039 | 右冠状动脉树 / right coronary artery tree
+
+Interpretation and limits / 模型含义与范围
+This is a simplified adult male reference model for educational visualization. Colors are illustrative, and display scale is not a physical measurement calibration.
+The ventricular-wall mesh combines both ventricular walls and does not permit independent selection of the left and right walls.
+The right-ventricle and left-ventricle meshes are solid surfaces representing chamber spaces, not muscle tissue. They become visible by hiding the surrounding wall or isolating a cavity.
+The right-atrium and left-atrium meshes show atrial walls; atrial cavities are not included.
+Coronary branches are grouped into two selectable artery trees, not separately named branches.
+The subset omits independently selectable valves, papillary muscles, pulmonary veins, the inferior vena cava, pericardium, and many surrounding structures. Several vessel ends are truncated.
+The source release notes acknowledge missing or incorrect anatomical representations: https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/release_4.0.html
+Source identifier and geometry checks do not constitute independent expert anatomical or clinical validation. This asset is not a diagnostic, treatment, physical measurement, or physiological simulation model.
+
+Knowledge references / 科普文字参考资料
+NIH / NHLBI — How the Heart Works: How Blood Flows through the Heart
+https://www.nhlbi.nih.gov/health/heart/blood-flow
+NIH / NHLBI — How the Heart Works: What the Heart Looks Like
+https://www.nhlbi.nih.gov/health/heart/anatomy
